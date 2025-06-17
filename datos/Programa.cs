@@ -267,6 +267,66 @@ class Program {
         }
     }
 
+    static void AgregarResultado(int legajo, string resultado) {
+        string archivo = "resultados-p2.md";
+        string lineaNueva = $"- {legajo} : {resultado}";
+        List<string> lineas = new();
+        bool encontrado = false;
+
+        if (File.Exists(archivo)) {
+            lineas = File.ReadAllLines(archivo).ToList();
+            for (int i = 0; i < lineas.Count; i++) {
+                if (lineas[i].TrimStart().StartsWith($"- {legajo} ")) {
+                    lineas[i] = lineaNueva;
+                    encontrado = true;
+                    break;
+                }
+            }
+        }
+        if (!encontrado) {
+            lineas.Add(lineaNueva);
+        }
+        File.WriteAllLines(archivo, lineas);
+    }
+
+    static void ProbarTP6(Clase clase)
+    {
+        Consola.Limpiar();
+        Consola.Escribir("=== Probar TP6 ===", ConsoleColor.Cyan);
+        int error = 0;
+        foreach (var alumno in clase.Presentaron(6))
+        {
+            var resultado = clase.EjecutarSistema(alumno.Legajo);
+            Consola.Escribir($"\n\n{alumno.Legajo} - {alumno.NombreCompleto}", ConsoleColor.Cyan);
+            var estado = resultado ? EstadoPractico.EnProgreso : EstadoPractico.Error;
+
+            var evaluacion = Consola.LeerCadena("Resultado:") ?? "";
+            if (evaluacion.Trim() == "fin")
+                return;
+            if (evaluacion.Contains("ok"))
+                estado = EstadoPractico.Aprobado;
+            AgregarResultado(alumno.Legajo, evaluacion);
+            alumno.PonerPractico(6, estado);
+            clase.Guardar();
+            if (!resultado) error++;
+        }
+        Consola.Escribir($"Se encontraron {error} errores al correr el TP6.", ConsoleColor.Red);
+    }
+
+    static void ProbarPorLegajo(Clase clase)
+    {
+        Consola.Limpiar();
+        Consola.Escribir("=== Probar por Legajo ===", ConsoleColor.Cyan);
+        int legajo = Consola.LeerEntero("Ingrese el legajo del alumno a probar: ");
+        var alumno = clase.Buscar(legajo);
+        if (alumno == null)
+        {
+            Consola.Escribir($"No se encontró un alumno con el legajo {legajo}.", ConsoleColor.Red);
+            return;
+        }
+        var resultado = clase.EjecutarSistema(alumno.Legajo);
+        Consola.Escribir($"Alumno: {alumno.NombreCompleto} ({alumno.Telefono}) - Resultado: {resultado}", ConsoleColor.Cyan);
+    }
     static void Main(string[] args)
     {
         CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
@@ -274,14 +334,19 @@ class Program {
 
         var clase = Clase.Cargar();
 
-        int practico = 5;
+        int practico = 6;
 
         var menu = new TUP.Menu("Bienvenido al sistema de gestión de alumnos");
         menu.Agregar("Listar alumnos", () => ListarAlumnos(clase));
         menu.Agregar("Publicar trabajo práctico", () => CopiarPractico(clase));
         menu.Agregar("Registrar Asistencia & Notas", () => RegistrarTodo(clase, practico));
         menu.Agregar("Faltan presentar TP", () => ListarNoPresentaron(clase, practico));
-        menu.Agregar("Faltan Github", () => ListarUsuariosGithub(clase));
+        // menu.Agregar("Faltan Github", () => ListarUsuariosGithub(clase));
+        menu.Agregar("  P2: Ejecutar", () => ProbarTP6(clase));
+        menu.Agregar("  P2: Presentaron", () => clase.Presentaron(6).ListarAlumnos());
+        menu.Agregar("  P2: No presentaron", () => clase.NoPresentaron(6).Continuan().ListarAlumnos());
+        menu.Agregar("  P2: Con error ", () => clase.ConError(6).ListarAlumnos());
+        menu.Agregar("Probar por Legajo", () => ProbarPorLegajo(clase));
 
         menu.Ejecutar();
 
